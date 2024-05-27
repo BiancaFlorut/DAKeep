@@ -1,7 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { Note } from '../interfaces/note.interface'
-import { DocumentData, Firestore, addDoc, collection, collectionData, doc, onSnapshot, updateDoc } from '@angular/fire/firestore';
-import { Observable, map } from 'rxjs';
+import {  Firestore, addDoc, collection, doc, onSnapshot, updateDoc } from '@angular/fire/firestore';
 
 @Injectable({
   providedIn: 'root'
@@ -80,11 +79,27 @@ export class NoteListService {
     });
   }
 
-  async updateNote(colId: string, docId: string, item: {}) {
-    await updateDoc(this.getSingleDocRef(colId, docId), item).catch((error) => {
-      console.log("Error updating document: ", error);
-    }).then((docRef) => {
-      console.log('Document updated with ID: ', docRef);
-    })
+  getColIdFromNote(note: Note) {
+    return note.type == 'note' ? 'notes' : 'trash';
+  }
+
+  getCleanJSON(note: Note) {
+    return {
+      type: note.type,
+      title: note.title,
+      content: note.content,
+      marked: note.marked
+    }
+  }
+
+  async updateNote(note: Note) {
+    if (note && note.id) {
+      let docRef = this.getSingleDocRef(this.getColIdFromNote(note), note.id);
+      await updateDoc(docRef, this.getCleanJSON(note)).catch((error) => {
+        console.log("Error updating document: ", error);
+      }).then((docRef) => {
+        console.log('Document updated with ID: ', docRef);
+      });
+    }
   }
 } 
