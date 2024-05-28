@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { Note } from '../interfaces/note.interface'
-import {  Firestore, addDoc, collection, doc, onSnapshot, updateDoc } from '@angular/fire/firestore';
+import { Firestore, addDoc, collection, doc, onSnapshot, updateDoc, deleteDoc, query, where, limit } from '@angular/fire/firestore';
 
 @Injectable({
   providedIn: 'root'
@@ -9,20 +9,23 @@ export class NoteListService {
 
   trashNotes: Note[] = [];
   normalNotes: Note[] = [];
+  normalMarkedNotes: Note[] = [];
 
   unsubTrash;
   unsubNotes;
+  unsubMarkedNodes;
 
   firestore: Firestore = inject(Firestore);
 
 
   constructor() {
+    this.unsubMarkedNodes = this.subMarkedNodesList();
     this.unsubNotes = this.subNotesList();
     this.unsubTrash = this.subTrashList();
+    
   }
 
   subTrashList() {
-    this.trashNotes = [];
     return onSnapshot(this.getTrashRef(), (list) => {
       this.trashNotes = [];
       list.forEach((element) => {
@@ -32,7 +35,6 @@ export class NoteListService {
   }
 
   subNotesList() {
-    this.normalNotes = [];
     return onSnapshot(this.getNotesRef(), (list) => {
       this.normalNotes = [];
       list.forEach((element) => {
@@ -41,9 +43,20 @@ export class NoteListService {
     });
   }
 
+  subMarkedNodesList() {
+    const q = query(this.getNotesRef(), where('marked', '==', true));
+    return onSnapshot(q, (list) => {
+      this.normalNotes = [];
+      list.forEach((element) => {
+        this.normalMarkedNotes.push(this.setNoteObject(element.data(), element.id));
+      });
+    });
+  }
+
   ngOnDestroy() {
     this.unsubNotes();
     this.unsubTrash();
+    this.unsubMarkedNodes();
   }
 
 
@@ -69,14 +82,19 @@ export class NoteListService {
     }
   }
 
-  async addNote(item: Note) {
-    await addDoc(this.getNotesRef(), item).catch((error) => {
-      console.log("Error adding document: ", error);
-
-    }).then((docRef) => {
-      console.log('Document written with ID: ', docRef?.id);
-
-    });
+  async addNote(item: Note, colId: 'notes' | 'trash') {
+    let docRef;
+    if (colId == 'trash') {
+      docRef = this.getTrashRef();
+    } else if (colId == 'notes') {
+      docRef = this.getNotesRef();
+    }
+    if (docRef)
+      await addDoc(docRef, item).catch((error) => {
+        console.log("Error adding document: ", error);
+      }).then((docRef) => {
+        console.log('Document written with ID: ', docRef?.id);
+      });
   }
 
   getColIdFromNote(note: Note) {
@@ -101,5 +119,11 @@ export class NoteListService {
         console.log('Document updated with ID: ', docRef);
       });
     }
+  }
+
+  async deleteNote(colId: 'notes' | 'trash', docId: string) {
+    await deleteDoc(this.getSingleDocRef(colId, docId)).catch((error) => {
+      console.log("Error deleting document: ", error);
+    });
   }
 } 

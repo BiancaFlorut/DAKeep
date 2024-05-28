@@ -18,7 +18,11 @@ export class NoteListComponent {
 
   getList(type: "notes" | "trash"): Note[] {
     if (type == "notes") {
-      return this.noteService.normalNotes;
+      if (this.favFilter == "all") {
+        return this.noteService.normalNotes;
+      } else {
+        return this.noteService.normalMarkedNotes;
+      }
     } else {
       return this.noteService.trashNotes;
     }
